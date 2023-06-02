@@ -18,17 +18,28 @@ jobs:
 
       - name: Build flyfly project
         working-directory: ./FlySpring/flyfly
-        run: mvn clean package -P gofly
+        run: mvn clean package 
 
-      - name: Set execute permissions on gradlew
-        run: chmod +x ./EdgeChain/gradlew
+      - name: Copy flyfly JAR to Examples folder and rename
+        run: cp ./FlySpring/flyfly/target/flyfly-0.0.1-SNAPSHOT.jar ./Examples/flyfly.jar
 
-      - name: Build EdgeChain project
-        working-directory: ./EdgeChain
-        run: ./gradlew clean build copyJar
+      - name: Build edgechain-lib project
+        working-directory: ./edgechain-library
+        run: mvn clean package
 
-      - name: Upload Script folder as artifact
-        uses: actions/upload-artifact@v2
+      - name: Install edgechain-lib JAR to local repository
+        working-directory: ./edgechain-library/target
+        run: mvn install:install-file -Dfile=edgechain-lib-1.0.0.jar -DgroupId=com.flyspring -DartifactId=edgechain-lib -Dversion=1.0.0 -Dpackaging=jar
+
+      - name: Build edgechain-app project
+        working-directory: ./edgechain-app
+        run: mvn clean package
+
+      - name: Copy edgechain-app JAR to Examples folder
+        run: cp ./edgechain-app/target/edgechain-app-1.0.0.jar ./Examples/
+
+      - name: Upload Examples folder as artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: Script
-          path: ./Script/
+          name: Output
+          path: Examples/
