@@ -791,6 +791,5 @@ public class EdgeChainApplication implements CommandLineRunner {
     }
   }
   
-
   /************ EXAMPLE APIs **********************/
 }
