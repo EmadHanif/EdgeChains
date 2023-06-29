@@ -211,7 +211,11 @@ public class EdgeChain<T> extends AbstractEdgeChain<T> implements Serializable {
   }
 
   public ArkEmitter<T> getArkEmitter(){
-    return new ArkEmitter<>(this.getScheduledObservableWithoutRetry());
+    return new ArkEmitter<>(this.observable);
+  }
+
+  public EdgeChain<T> getResponse(){
+    return this;
   }
 
   @Override

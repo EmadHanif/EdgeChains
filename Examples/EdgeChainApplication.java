@@ -138,7 +138,7 @@ public class EdgeChainApplication implements CommandLineRunner {
     @GetMapping(
             value = "/summary",
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE})
-    public Object wikiSummary(@RequestParam String query, @RequestParam Boolean stream) {
+    public ArkResponse<?> wikiSummary(@RequestParam String query, @RequestParam Boolean stream) {
 
       HashMap<String, JsonnetArgs> parameters = new HashMap<>();
       parameters.put("keepMaxTokens", new JsonnetArgs(DataType.BOOLEAN, "true"));
@@ -193,6 +193,7 @@ public class EdgeChainApplication implements CommandLineRunner {
                         prompt -> openAiService.chatCompletion(new OpenAiChatRequest(chatEndpoint, prompt)))
                 .getArkResponse();
     }
+
   }
 
   @RestController
@@ -248,8 +249,10 @@ public class EdgeChainApplication implements CommandLineRunner {
       JsonnetLoader loader = new FileJsonnetLoader("R:\\pinecone-query.jsonnet");
       Schema schema = loader.loadOrReload(new HashMap<>(), Schema.class);
 
-      EmbeddingService embeddingService = new ServiceMapper().map(schema, "embeddingService", EmbeddingService.class);
-      PineconeService pineconeService = new ServiceMapper().map(schema, "pineconeService", PineconeService.class);
+      EmbeddingService embeddingService =
+              new ServiceMapper().map(schema, "embeddingService", EmbeddingService.class);
+      PineconeService pineconeService =
+              new ServiceMapper().map(schema, "pineconeService", PineconeService.class);
 
       String[] arr = pdfReader.readByChunkSize(file.getInputStream(), 512);
 
@@ -334,28 +337,29 @@ public class EdgeChainApplication implements CommandLineRunner {
 
         AtomInteger currentTopK = AtomInteger.of(0);
 
-        return new EdgeChain<>(
-                Observable.create(
-                        emitter -> {
-                          try {
-                            String input = pineconeQueries[currentTopK.getAndIncrement()];
+        return new ArkEmitter<>(
+                new EdgeChain<>(
+                        Observable.create(
+                                emitter -> {
+                                  try {
+                                    String input = pineconeQueries[currentTopK.getAndIncrement()];
 
-                            parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
-                            parameters.put("context", new JsonnetArgs(DataType.STRING, input));
+                                    parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
+                                    parameters.put("context", new JsonnetArgs(DataType.STRING, input));
 
-                            Schema schema_ = loader.loadOrReload(parameters, Schema.class);
+                                    Schema schema_ = loader.loadOrReload(parameters, Schema.class);
 
-                            emitter.onNext(
-                                    openAiService.chatCompletion(
-                                            new OpenAiChatRequest(chatEndpoint, schema_.getPrompt())));
-                            emitter.onComplete();
+                                    emitter.onNext(
+                                            openAiService.chatCompletion(
+                                                    new OpenAiChatRequest(chatEndpoint, schema_.getPrompt())));
+                                    emitter.onComplete();
 
-                          } catch (final Exception e) {
-                            emitter.onError(e);
-                          }
-                        }))
-                .doWhileLoop(() -> currentTopK.get() == ((int) topK))
-                .getArkEmitter();
+                                  } catch (final Exception e) {
+                                    emitter.onError(e);
+                                  }
+                                }))
+                        .doWhileLoop(() -> currentTopK.get() == ((int) topK)).getScheduledObservableWithoutRetry()
+        );
       } else {
         // Creation of Chains
         return create(
@@ -392,7 +396,6 @@ public class EdgeChainApplication implements CommandLineRunner {
     }
 
     /**
-     *
      * @param contextId
      * @param stream
      * @param query
@@ -401,7 +404,7 @@ public class EdgeChainApplication implements CommandLineRunner {
     @GetMapping(
             value = "/query/context",
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE})
-    public Object queryWithChatHistory(
+    public ArkResponse<?> queryWithChatHistory(
             @RequestParam String contextId, @RequestParam Boolean stream, @RequestParam String query) {
 
       HashMap<String, JsonnetArgs> parameters = new HashMap<>();
@@ -449,7 +452,7 @@ public class EdgeChainApplication implements CommandLineRunner {
               new ServiceMapper().map(schema, "historyContextService", HistoryContextService.class);
 
       // Creating Chains
-      EdgeChain<Tuple2<String,String>> edgeChain =
+      EdgeChain<Tuple2<String, String>> edgeChain =
               create(
                       embeddingService
                               .openAi(new OpenAiEmbeddingsRequest(embeddingEndpoint, query))
@@ -477,26 +480,32 @@ public class EdgeChainApplication implements CommandLineRunner {
                                 ChatSchema schema_ = loader.loadOrReload(parameters, ChatSchema.class);
 
                                 // ChatHistory, Prompt
-                                return new Tuple2<>(chatHistory,schema_.getPrompt());
+                                return new Tuple2<>(chatHistory, schema_.getPrompt());
                               });
 
       if (chatEndpoint.getStream()) {
-
-        Tuple2<String,String> tuple2 = edgeChain.getWithOutRetry();
-
-        System.out.println("\nPrompt: \n"+tuple2._2);
-
         StringBuilder openAiResponseBuilder = new StringBuilder();
-        return new ArkEmitter<>(
-                openAiStreamService.chatCompletion(new OpenAiChatRequest(chatEndpoint,tuple2._2)).doOnNext(
-                        v -> {
-                          if (v.getResponse().equals(WebConstants.CHAT_STREAM_EVENT_COMPLETION_MESSAGE)) {
-                            String redisHistory = query + openAiResponseBuilder.toString().replaceAll("[\t\n\r]+", " ") + tuple2._1;
-                            contextService.put(contextId, redisHistory).getWithRetry();
-                          } else {
-                            openAiResponseBuilder.append(v.getResponse());
-                          }
-                        }));
+        return edgeChain
+                .transform(
+                        tuple2 ->
+                                openAiStreamService
+                                        .chatCompletion(new OpenAiChatRequest(chatEndpoint, tuple2._2))
+                                        .doOnNext(
+                                                v -> {
+                                                  if (v.getResponse()
+                                                          .equals(WebConstants.CHAT_STREAM_EVENT_COMPLETION_MESSAGE)) {
+                                                    String redisHistory =
+                                                            query
+                                                                    + openAiResponseBuilder
+                                                                    .toString()
+                                                                    .replaceAll("[\t\n\r]+", " ")
+                                                                    + tuple2._1;
+                                                    contextService.put(contextId, redisHistory).getWithRetry();
+                                                  } else {
+                                                    openAiResponseBuilder.append(v.getResponse());
+                                                  }
+                                                }))
+                .getArkResponse();
 
       } else
         return edgeChain
@@ -545,7 +554,6 @@ public class EdgeChainApplication implements CommandLineRunner {
 
       IntStream.range(0, arr.length).parallel().forEach(i -> retrieval.upsert(arr[i]));
     }
-
 
     @GetMapping(
             value = "/query",
@@ -603,28 +611,29 @@ public class EdgeChainApplication implements CommandLineRunner {
 
         AtomInteger currentTopK = AtomInteger.of(0);
 
-        return new EdgeChain<>(
-                Observable.create(
-                        emitter -> {
-                          try {
-                            String input = redisQueries[currentTopK.getAndIncrement()];
+        return new ArkEmitter<>(
+                new EdgeChain<>(
+                        Observable.create(
+                                emitter -> {
+                                  try {
+                                    String input = redisQueries[currentTopK.getAndIncrement()];
 
-                            parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
-                            parameters.put("context", new JsonnetArgs(DataType.STRING, input));
+                                    parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
+                                    parameters.put("context", new JsonnetArgs(DataType.STRING, input));
 
-                            Schema schema_ = loader.loadOrReload(parameters, Schema.class);
+                                    Schema schema_ = loader.loadOrReload(parameters, Schema.class);
 
-                            emitter.onNext(
-                                    openAiService.chatCompletion(
-                                            new OpenAiChatRequest(chatEndpoint, schema_.getPrompt())));
-                            emitter.onComplete();
+                                    emitter.onNext(
+                                            openAiService.chatCompletion(
+                                                    new OpenAiChatRequest(chatEndpoint, schema_.getPrompt())));
+                                    emitter.onComplete();
 
-                          } catch (final Exception e) {
-                            emitter.onError(e);
-                          }
-                        }))
-                .doWhileLoop(() -> currentTopK.get() == ((int) topK))
-                .getArkEmitter();
+                                  } catch (final Exception e) {
+                                    emitter.onError(e);
+                                  }
+                                }))
+                        .doWhileLoop(() -> currentTopK.get() == ((int) topK)).getScheduledObservableWithoutRetry()
+        );
       } else {
         // Creation of Chains
         return create(
@@ -661,7 +670,6 @@ public class EdgeChainApplication implements CommandLineRunner {
     }
 
     /**
-     *
      * @param contextId
      * @param stream
      * @param query
@@ -670,7 +678,7 @@ public class EdgeChainApplication implements CommandLineRunner {
     @GetMapping(
             value = "/query/context",
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE})
-    public Object queryWithChatHistory(
+    public ArkResponse<?> queryWithChatHistory(
             @RequestParam String contextId, @RequestParam Boolean stream, @RequestParam String query) {
 
       HashMap<String, JsonnetArgs> parameters = new HashMap<>();
@@ -712,7 +720,7 @@ public class EdgeChainApplication implements CommandLineRunner {
               new ServiceMapper().map(schema, "historyContextService", HistoryContextService.class);
 
       // Creating Chains
-      EdgeChain<Tuple2<String,String>> edgeChain =
+      EdgeChain<Tuple2<String, String>> edgeChain =
               create(
                       embeddingService
                               .openAi(new OpenAiEmbeddingsRequest(embeddingEndpoint, query))
@@ -720,8 +728,7 @@ public class EdgeChainApplication implements CommandLineRunner {
                       .transform(
                               embeddingOutput ->
                                       redisService
-                                              .query(
-                                                      new RedisRequest(embeddingOutput, schema.getTopK()))
+                                              .query(new RedisRequest(embeddingOutput, schema.getTopK()))
                                               .getResponse())
                       .transform(
                               redisOutput -> {
@@ -739,26 +746,33 @@ public class EdgeChainApplication implements CommandLineRunner {
                                 ChatSchema schema_ = loader.loadOrReload(parameters, ChatSchema.class);
 
                                 // ChatHistory, Prompt
-                                return new Tuple2<>(chatHistory,schema_.getPrompt());
+                                return new Tuple2<>(chatHistory, schema_.getPrompt());
                               });
 
+
       if (chatEndpoint.getStream()) {
-
-        Tuple2<String,String> tuple2 = edgeChain.getWithOutRetry();
-
-        System.out.println("\nPrompt: \n"+tuple2._2);
-
         StringBuilder openAiResponseBuilder = new StringBuilder();
-        return new ArkEmitter<>(
-                openAiStreamService.chatCompletion(new OpenAiChatRequest(chatEndpoint,tuple2._2)).doOnNext(
-                        v -> {
-                          if (v.getResponse().equals(WebConstants.CHAT_STREAM_EVENT_COMPLETION_MESSAGE)) {
-                            String redisHistory = query + openAiResponseBuilder.toString().replaceAll("[\t\n\r]+", " ") + tuple2._1;
-                            contextService.put(contextId, redisHistory).getWithRetry();
-                          } else {
-                            openAiResponseBuilder.append(v.getResponse());
-                          }
-                        }));
+        return edgeChain
+                .transform(
+                        tuple2 ->
+                                openAiStreamService
+                                        .chatCompletion(new OpenAiChatRequest(chatEndpoint, tuple2._2))
+                                        .doOnNext(
+                                                v -> {
+                                                  if (v.getResponse()
+                                                          .equals(WebConstants.CHAT_STREAM_EVENT_COMPLETION_MESSAGE)) {
+                                                    String redisHistory =
+                                                            query
+                                                                    + openAiResponseBuilder
+                                                                    .toString()
+                                                                    .replaceAll("[\t\n\r]+", " ")
+                                                                    + tuple2._1;
+                                                    contextService.put(contextId, redisHistory).getWithRetry();
+                                                  } else {
+                                                    openAiResponseBuilder.append(v.getResponse());
+                                                  }
+                                                }))
+                .getArkResponse();
 
       } else
         return edgeChain
@@ -775,7 +789,6 @@ public class EdgeChainApplication implements CommandLineRunner {
                         })
                 .getArkResponse();
     }
-
   }
   
 
