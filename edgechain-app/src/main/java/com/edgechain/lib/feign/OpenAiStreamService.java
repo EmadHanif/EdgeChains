@@ -41,20 +41,20 @@ public class OpenAiStreamService {
                     : v);
   }
 
-  public Flux<ChainResponse> chatCompletionStreamFlux(OpenAiChatRequest request) {
-
-    System.out.println("Logging....");
-    return WebClient.builder()
-        .build()
-        .post()
-        .uri(feignUrl + "/openai/chat-completion-stream")
-        .accept(MediaType.TEXT_EVENT_STREAM)
-        .headers(
-            httpHeaders -> {
-              httpHeaders.setContentType(MediaType.APPLICATION_JSON);
-            })
-        .bodyValue(JsonUtils.convertToString(request))
-        .retrieve()
-        .bodyToFlux(ChainResponse.class);
-  }
+//  public Flux<ChainResponse> chatCompletionStreamFlux(OpenAiChatRequest request) {
+//
+//    System.out.println("Logging....");
+//    return WebClient.builder()
+//        .build()
+//        .post()
+//        .uri(feignUrl + "/openai/chat-completion-stream")
+//        .accept(MediaType.TEXT_EVENT_STREAM)
+//        .headers(
+//            httpHeaders -> {
+//              httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+//            })
+//        .bodyValue(JsonUtils.convertToString(request))
+//        .retrieve()
+//        .bodyToFlux(ChainResponse.class);
+//  }
 }

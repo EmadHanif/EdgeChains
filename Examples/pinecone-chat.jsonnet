@@ -6,13 +6,16 @@ local preset = |||
                 |||;
 local query = "Question: "+std.extVar("query");
 local context = if(std.extVar("keepContext") == true) then std.extVar("context") else "";
-local prompt = std.join("\n", [query, preset, context]);
+local history = "Chat History: "+ if(std.extVar("keepHistory") == true) then std.extVar("history") else "";
+
+local prompt = std.join("\n", [query, preset, context, history]);
 {
     "maxTokens": maxTokens,
-    "topK": 8,
+    "topK": 5,
     "query": query,
     "preset" : preset,
     "context": context,
-    "prompt": if(std.length(prompt) > maxTokens) then std.substr(prompt, std.abs(maxTokens - std.length(prompt)), maxTokens) else prompt,
+    "history": history,
+    "prompt":  if(std.length(prompt) > maxTokens) then std.substr(prompt, 0, maxTokens) else prompt,
     "services": ["pineconeService", "openAiService", "embeddingService", "openAiStreamService", "historyContextService"]
 }

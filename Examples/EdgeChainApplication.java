@@ -10,7 +10,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
-import com.edgechain.lib.context.domain.HistoryContext;
 import com.edgechain.lib.context.services.HistoryContextService;
 import com.edgechain.lib.context.services.impl.RedisHistoryContextService;
 import com.edgechain.lib.feign.EmbeddingService;
@@ -82,7 +81,7 @@ public class EdgeChainApplication implements CommandLineRunner {
 
     System.setProperty(
             "spring.data.redis.host", "");
-    System.setProperty("spring.data.redis.port", "6379");
+    System.setProperty("spring.data.redis.port", "12285");
     System.setProperty("spring.data.redis.username", "default");
     System.setProperty("spring.data.redis.password", "");
     System.setProperty("spring.data.redis.connect-timeout", "120000");
@@ -121,18 +120,14 @@ public class EdgeChainApplication implements CommandLineRunner {
   }
 
   @Override
-  public void run(String... args) throws Exception {
-
-  }
+  public void run(String... args) throws Exception {}
 
   @RestController
   @RequestMapping("/v1/wiki")
   public class WikiController {
 
-    @GetMapping(
-            value = "/summary",
-            produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE})
-    public Object wikiSummary(@RequestParam String query, @RequestParam Boolean stream) {
+    @GetMapping(value = "/summary", produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_EVENT_STREAM_VALUE})
+    public ArkResponse<?> wikiSummary(@RequestParam String query, @RequestParam Boolean stream) {
 
       HashMap<String, JsonnetArgs> parameters = new HashMap<>();
       parameters.put("keepMaxTokens", new JsonnetArgs(DataType.BOOLEAN, "true"));
@@ -156,48 +151,24 @@ public class EdgeChainApplication implements CommandLineRunner {
       // Step 3: Fetch WikiService Defined In Jsonnet
       WikiService wikiService = new ServiceMapper().map(schema, "wikiService", WikiService.class);
 
-      if (chatEndpoint.getStream()) {
+      // Fetch OpenAI Service Defined In Jsonnet
+      OpenAiService openAiService = new ServiceMapper().map(schema, "openAiService", OpenAiService.class);
 
-        // Fetch OpenAIStream Service Defined In Jsonnet
-        OpenAiStreamService openAiStreamService =
-                new ServiceMapper().map(schema, "openAiStreamService", OpenAiStreamService.class);
+      // Fetch OpenAIStream Service Defined In Jsonnet
+      OpenAiStreamService openAiStreamService = new ServiceMapper().map(schema, "openAiStreamService", OpenAiStreamService.class);
 
-        return new ArkResponse<>(
-                create(wikiService.getPageContent(query).getResponse())
-                        .transform(
-                                wikiOutput -> {
-                                  parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
-                                  parameters.put("context", new JsonnetArgs(DataType.STRING, wikiOutput));
+      EdgeChain<String> edgeChain = create(wikiService.getPageContent(query).getResponse())
+              .transform(
+                      wikiOutput -> {
+                        parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
+                        parameters.put("context", new JsonnetArgs(DataType.STRING, wikiOutput));
 
-                                  Schema schema_ = loader.loadOrReload(parameters, Schema.class);
-                                  return schema_.getPrompt();
-                                })
-                        .transform(
-                                prompt ->
-                                        openAiStreamService.chatCompletion(
-                                                new OpenAiChatRequest(chatEndpoint, prompt)))
-                        .getScheduledObservableWithoutRetry());
-      } else {
+                        Schema schema_ = loader.loadOrReload(parameters, Schema.class);
+                        return schema_.getPrompt();
+                      });
 
-        // Fetch OpenAI Service Defined In Jsonnet
-        OpenAiService openAiService =
-                new ServiceMapper().map(schema, "openAiService", OpenAiService.class);
-
-        return new ArkResponse<>(
-                create(wikiService.getPageContent(query).getResponse())
-                        .transform(
-                                wikiOutput -> {
-                                  parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
-                                  parameters.put("context", new JsonnetArgs(DataType.STRING, wikiOutput));
-
-                                  Schema schema_ = loader.loadOrReload(parameters, Schema.class);
-                                  return schema_.getPrompt();
-                                })
-                        .transform(
-                                prompt ->
-                                        openAiService.chatCompletion(new OpenAiChatRequest(chatEndpoint, prompt)))
-                        .getScheduledObservableWithoutRetry());
-      }
+      if (chatEndpoint.getStream()) return edgeChain.transform(prompt -> openAiStreamService.chatCompletion(new OpenAiChatRequest(chatEndpoint, prompt))).getArkResponse();
+      else return edgeChain.transform(prompt -> openAiService.chatCompletion(new OpenAiChatRequest(chatEndpoint, prompt))).getArkResponse();
     }
   }
 
@@ -228,9 +199,7 @@ public class EdgeChainApplication implements CommandLineRunner {
 
     @GetMapping("/create")
     public ArkResponse<?> create() {
-      return new ArkResponse<>(
-              historyContextService.create().getScheduledObservableWithRetry()
-      );
+      return new ArkResponse<>(historyContextService.create().getScheduledObservableWithRetry());
     }
 
     @GetMapping("/{id}")
@@ -339,68 +308,66 @@ public class EdgeChainApplication implements CommandLineRunner {
 
         AtomInteger currentTopK = AtomInteger.of(0);
 
-        return new ArkEmitter<>(
-                new EdgeChain<>(
-                        Observable.create(
-                                emitter -> {
-                                  try {
-                                    String input = pineconeQueries[currentTopK.getAndIncrement()];
+        return new EdgeChain<>(
+                Observable.create(
+                        emitter -> {
+                          try {
+                            String input = pineconeQueries[currentTopK.getAndIncrement()];
 
-                                    parameters.put(
-                                            "keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
-                                    parameters.put("context", new JsonnetArgs(DataType.STRING, input));
+                            parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
+                            parameters.put("context", new JsonnetArgs(DataType.STRING, input));
 
-                                    Schema schema_ = loader.loadOrReload(parameters, Schema.class);
+                            Schema schema_ = loader.loadOrReload(parameters, Schema.class);
 
-                                    emitter.onNext(
-                                            openAiService.chatCompletion(
-                                                    new OpenAiChatRequest(chatEndpoint, schema_.getPrompt())));
-                                    emitter.onComplete();
+                            emitter.onNext(
+                                    openAiService.chatCompletion(
+                                            new OpenAiChatRequest(chatEndpoint, schema_.getPrompt())));
+                            emitter.onComplete();
 
-                                  } catch (final Exception e) {
-                                    emitter.onError(e);
-                                  }
-                                }))
-                        .doWhileLoop(() -> currentTopK.get() == ((int) topK))
-                        .getScheduledObservableWithoutRetry());
+                          } catch (final Exception e) {
+                            emitter.onError(e);
+                          }
+                        }))
+                .doWhileLoop(() -> currentTopK.get() == ((int) topK))
+                .getArkEmitter();
       } else {
         // Creation of Chains
-        return new ArkResponse<>(
-                create(
-                        embeddingService
-                                .openAi(new OpenAiEmbeddingsRequest(embeddingEndpoint, query))
-                                .getResponse())
-                        .transform(
-                                embeddingOutput ->
-                                        pineconeService
-                                                .query(new PineconeRequest(pineconeEndpoint, embeddingOutput, topK))
-                                                .getResponse())
-                        .transform(
-                                pineconeOutput -> {
-                                  List<ChainResponse> output = new ArrayList<>();
+        return create(
+                embeddingService
+                        .openAi(new OpenAiEmbeddingsRequest(embeddingEndpoint, query))
+                        .getResponse())
+                .transform(
+                        embeddingOutput ->
+                                pineconeService
+                                        .query(new PineconeRequest(pineconeEndpoint, embeddingOutput, topK))
+                                        .getResponse())
+                .transform(
+                        pineconeOutput -> {
+                          List<ChainResponse> output = new ArrayList<>();
 
-                                  StringTokenizer tokenizer = new StringTokenizer(pineconeOutput, "\n");
-                                  while (tokenizer.hasMoreTokens()) {
+                          StringTokenizer tokenizer = new StringTokenizer(pineconeOutput, "\n");
+                          while (tokenizer.hasMoreTokens()) {
 
-                                    String response = tokenizer.nextToken();
-                                    // Use jsonnet loader
-                                    parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
-                                    parameters.put("context", new JsonnetArgs(DataType.STRING, response));
+                            String response = tokenizer.nextToken();
+                            // Use jsonnet loader
+                            parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
+                            parameters.put("context", new JsonnetArgs(DataType.STRING, response));
 
-                                    Schema schema_ = loader.loadOrReload(parameters, Schema.class);
-                                    output.add(
-                                            openAiService.chatCompletion(
-                                                    new OpenAiChatRequest(chatEndpoint, schema_.getPrompt())));
-                                  }
+                            Schema schema_ = loader.loadOrReload(parameters, Schema.class);
+                            output.add(
+                                    openAiService.chatCompletion(
+                                            new OpenAiChatRequest(chatEndpoint, schema_.getPrompt())));
+                          }
 
-                                  return output;
-                                })
-                        .getScheduledObservableWithoutRetry());
+                          return output;
+                        })
+                .getArkResponse();
       }
     }
 
     /**
      * Fixing the issue....
+     *
      * @param contextId
      * @param stream
      * @param query
@@ -417,8 +384,7 @@ public class EdgeChainApplication implements CommandLineRunner {
       parameters.put("keepMaxTokens", new JsonnetArgs(DataType.BOOLEAN, "true"));
       parameters.put("maxTokens", new JsonnetArgs(DataType.INTEGER, "4096"));
       parameters.put("query", new JsonnetArgs(DataType.STRING, query));
-      parameters.put("history", new JsonnetArgs(DataType.STRING, ""));
-      parameters.put("context", new JsonnetArgs(DataType.STRING,""));
+      parameters.put("keepHistory", new JsonnetArgs(DataType.BOOLEAN, "false"));
 
       JsonnetLoader loader = new FileJsonnetLoader("R:\\pinecone-chat.jsonnet");
       ChatSchema schema = loader.loadOrReload(parameters, ChatSchema.class);
@@ -446,91 +412,66 @@ public class EdgeChainApplication implements CommandLineRunner {
                       stream,
                       new ExponentialDelay(3, 3, 2, TimeUnit.SECONDS));
 
-      PineconeService pineconeService = new ServiceMapper().map(schema, "pineconeService", PineconeService.class);
-      EmbeddingService embeddingService = new ServiceMapper().map(schema, "embeddingService", EmbeddingService.class);
+      PineconeService pineconeService =
+              new ServiceMapper().map(schema, "pineconeService", PineconeService.class);
+      EmbeddingService embeddingService =
+              new ServiceMapper().map(schema, "embeddingService", EmbeddingService.class);
       OpenAiService openAiService = new ServiceMapper().map(schema, "openAiService", OpenAiService.class);
+      OpenAiStreamService openAiStreamService = new ServiceMapper().map(schema, "openAiStreamService", OpenAiStreamService.class);
       HistoryContextService contextService = new ServiceMapper().map(schema, "historyContextService", HistoryContextService.class);
 
-      if (chatEndpoint.getStream()) return null;
-      else {
+      // Creating Chains
+      EdgeChain<String> edgeChain = create(
+              embeddingService.openAi(new OpenAiEmbeddingsRequest(embeddingEndpoint, query)).getResponse())
+              .transform(
+                      embeddingOutput -> pineconeService.query(new PineconeRequest(pineconeEndpoint, embeddingOutput, schema.getTopK())).getResponse())
+              .transform(pineconeOutput -> {
+                System.out.printf("Query %s-%s",schema.getTopK(), pineconeOutput);
 
-        // Creating Chains
+                // Query, Preset, PineconeOutput, ChatHistory
+                String chatHistory = contextService.get(contextId).getWithRetry().getResponse();
+
+                if(chatHistory == null || chatHistory.equals("")) chatHistory = "";
+
+                parameters.put("keepHistory",  new JsonnetArgs(DataType.BOOLEAN, "true"));
+                parameters.put("history", new JsonnetArgs(DataType.STRING, chatHistory));
+
+                parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
+                parameters.put("context", new JsonnetArgs(DataType.STRING, pineconeOutput));
+
+                ChatSchema schema_ = loader.loadOrReload(parameters, ChatSchema.class);
+                return schema_.getPrompt();
+              });
+
+      if(chatEndpoint.getStream()) {
+
+        String prompt = edgeChain.getWithOutRetry();
+
+        System.out.print("Prompt: "+prompt);
+
+        StringBuilder openAiResponseBuilder = new StringBuilder();
         return new ArkResponse<>(
-                create(
-                        embeddingService
-                                .openAi(new OpenAiEmbeddingsRequest(embeddingEndpoint, query))
-                                .getResponse())
-                        .transform(
-                                embeddingOutput ->
-                                        pineconeService
-                                                .query(
-                                                        new PineconeRequest(
-                                                                pineconeEndpoint, embeddingOutput, schema.getTopK()))
-                                                .getResponse())
-                        .transform(
-                                pineconeOutput -> {
-                                  System.out.printf("Query-%s-%s", schema.getTopK(), pineconeOutput);
-
-                                  // Get RedisHistory Context
-                                  String chatHistory =
-                                          contextService.get(contextId).getWithRetry().getResponse();
-
-                                  if(chatHistory.length() > 0 ){
-                                    return new Tuple3<>(query, pineconeOutput + "\n", "Chat History\n"+chatHistory);
+                openAiStreamService.chatCompletion(new OpenAiChatRequest(chatEndpoint,prompt))
+                        .doOnNext(
+                                v -> {
+                                  if (v.getResponse().equals(WebConstants.CHAT_STREAM_EVENT_COMPLETION_MESSAGE)) {
+                                    String redisHistory = query + openAiResponseBuilder.toString().replaceAll("[\t\n\r]+", " ");
+//                                    System.out.println("Redis History: "+redisHistory);
+                                    contextService.put(contextId, redisHistory).getWithRetry();
                                   } else {
-                                    return new Tuple3<>(query, pineconeOutput + "\n", "");
+                                    openAiResponseBuilder.append(v.getResponse());
                                   }
-
                                 })
-                        .transform(
-                                tuple3 -> {
 
-                                  // Lessening the History
-                                  int totalTokens =
-                                          schema.getQuery().length()
-                                                  + schema.getPreset().length()
-                                                  + tuple3._2().length()
-                                                  + tuple3._3().length();
-
-                                  String modifiedHistory = "";
-
-                                  if (tuple3._3().length() > 0) {
-                                    if(totalTokens > schema.getMaxTokens()) {
-                                      int diff = Math.abs(schema.getMaxTokens() - totalTokens);
-                                      System.out.println("Difference Value: " + diff);
-                                      modifiedHistory =  tuple3._3().substring(diff + 1);
-                                      parameters.put("history", new JsonnetArgs(DataType.STRING, "Chat History"+"\n"+modifiedHistory));
-                                    }
-                                  }
-                                  else {
-                                    modifiedHistory = tuple3._3();
-                                    parameters.put("history", new JsonnetArgs(DataType.STRING, "Chat History"+"\n"+modifiedHistory));
-                                  }
-
-
-                                  // Use jsonnet loader
-                                  parameters.put("keepContext", new JsonnetArgs(DataType.BOOLEAN, "true"));
-                                  parameters.put("context", new JsonnetArgs(DataType.STRING, tuple3._2()));
-
-                                  ChatSchema schema_ = loader.loadOrReload(parameters, ChatSchema.class);
-
-                                  System.out.println("Prompt:\n" + schema_.getPrompt());
-
-                                  String openAiResponse =
-                                          openAiService
-                                                  .chatCompletion(
-                                                          new OpenAiChatRequest(chatEndpoint, schema_.getPrompt()))
-                                                  .getResponse();
-
-                                  // Save to Redis
-                                  contextService
-                                          .put(contextId, tuple3._3() + tuple3._1() + openAiResponse)
-                                          .getWithRetry();
-
-                                  return openAiResponse;
-                                })
-                        .getScheduledObservableWithoutRetry());
+        );
       }
+
+      else return edgeChain.transform(prompt -> {
+        String openAiResponse = openAiService.chatCompletion(new OpenAiChatRequest(chatEndpoint, prompt)).getResponse();
+        return contextService.put(contextId, query + openAiResponse);
+      }).getArkResponse();
+
     }
   }
 }
+
