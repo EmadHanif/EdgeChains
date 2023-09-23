@@ -142,8 +142,7 @@ public class RedisClient {
                   ArrayList<RedisProperty> properties = iterator.next().getProperties();
                   words2VecList.add(
                       new WordEmbeddings(
-                          properties.get(1).getId(),
-                          String.valueOf(properties.get(0).get__values_score())));
+                          properties.get(1).getId(), properties.get(0).get__values_score()));
                 }
 
                 emitter.onNext(words2VecList);

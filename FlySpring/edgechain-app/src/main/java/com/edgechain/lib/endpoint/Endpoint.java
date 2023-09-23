@@ -8,6 +8,7 @@ public class Endpoint implements Serializable {
 
   private static final long serialVersionUID = 8770981950923685799L;
 
+
   private String url;
   private String apiKey;
   private RetryPolicy retryPolicy;
