@@ -13,12 +13,11 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.edgechain.lib.chains.PineconeRetrieval;
 import com.edgechain.lib.chunk.Chunker;
-import com.edgechain.lib.endpoint.impl.OpenAiEndpoint;
-import com.edgechain.lib.endpoint.impl.PineconeEndpoint;
+import com.edgechain.lib.endpoint.impl.embeddings.OpenAiEmbeddingEndpoint;
+import com.edgechain.lib.endpoint.impl.index.PineconeEndpoint;
 import com.edgechain.lib.request.ArkRequest;
 import com.edgechain.lib.response.ArkResponse;
 import com.edgechain.lib.rxjava.retry.impl.ExponentialDelay;
-import com.edgechain.lib.rxjava.retry.impl.FixedDelay;
 import com.edgechain.lib.rxjava.transformer.observable.EdgeChain;
 import me.xuender.unidecode.Unidecode;
 import org.apache.commons.io.IOUtils;
@@ -76,11 +75,10 @@ public class ZapierExample {
   private static final String ZAPIER_HOOK_URL = ""; // E.g. https://hooks.zapier.com/hooks/catch/18785910/2ia657b
 
   private static final String PINECONE_AUTH_KEY = "";
-  private static final String PINECONE_UPSERT_API = "";
-  private static final String PINECONE_DELETE = "";
-  private static OpenAiEndpoint ada002Embedding;
-  private static PineconeEndpoint upsertPineconeEndpoint;
-  private static PineconeEndpoint deletePineconeEndpoint;
+  private static final String PINECONE_API = "";
+
+
+  private PineconeEndpoint pineconeEndpoint;
 
   public static void main(String[] args) {
 
@@ -88,29 +86,18 @@ public class ZapierExample {
 
     new SpringApplicationBuilder(ZapierExample.class).run(args);
 
-    // Variables Initialization
-    ada002Embedding =
-        new OpenAiEndpoint(
-            OPENAI_EMBEDDINGS_API,
+    OpenAiEmbeddingEndpoint ada002 = new OpenAiEmbeddingEndpoint(
             OPENAI_AUTH_KEY,
             OPENAI_ORG_ID,
             "text-embedding-ada-002",
             new ExponentialDelay(3, 3, 2, TimeUnit.SECONDS));
 
-    upsertPineconeEndpoint =
-        new PineconeEndpoint(
-            PINECONE_UPSERT_API,
-            PINECONE_AUTH_KEY,
-            "machine-learning", // Passing namespace; read more on Pinecone documentation. You can also pass empty string
-            new ExponentialDelay(3, 3, 2, TimeUnit.SECONDS));
-
-    deletePineconeEndpoint =
+    pineconeEndpoint =
             new PineconeEndpoint(
-                    PINECONE_DELETE,
+                    PINECONE_API,
                     PINECONE_AUTH_KEY,
-                    "machine-learning", // Passing namespace; read more on Pinecone documentation. You can
-                    // pass empty string
-                    new FixedDelay(4, 5, TimeUnit.SECONDS));
+                    ada002,
+                    new ExponentialDelay(3, 3, 2, TimeUnit.SECONDS));
   }
 
 
@@ -165,7 +152,7 @@ public class ZapierExample {
 
     @PostMapping("/upsert-urls")
     public void upsertParsedURLs(ArkRequest arkRequest) throws IOException {
-
+        String namespace = arkRequest.getQueryParam("namespace");
         JSONObject body = arkRequest.getBody();
         String bucketName = body.getString("bucketName");
 
@@ -202,7 +189,7 @@ public class ZapierExample {
 
           // Upsert to Pinecone:
           PineconeRetrieval retrieval =
-                  new PineconeRetrieval(arr, ada002Embedding, upsertPineconeEndpoint, arkRequest);
+                  new PineconeRetrieval(arr, pineconeEndpoint,  namespace, arkRequest);
 
           retrieval.upsert();
 
@@ -215,8 +202,9 @@ public class ZapierExample {
 
     @PostMapping("/upsert-pdfs")
     public void upsertPDFs(ArkRequest arkRequest) throws IOException {
-
+      String namespace = arkRequest.getQueryParam("namespace");
       JSONObject body = arkRequest.getBody();
+
       String bucketName = body.getString("bucketName");
 
       // Get all the files from S3 bucket
@@ -249,7 +237,7 @@ public class ZapierExample {
 
           // Upsert to Pinecone:
           PineconeRetrieval retrieval =
-                  new PineconeRetrieval(arr, ada002Embedding, upsertPineconeEndpoint, arkRequest);
+                  new PineconeRetrieval(arr, pineconeEndpoint, namespace, arkRequest);
 
           retrieval.upsert();
 
@@ -262,7 +250,8 @@ public class ZapierExample {
 
     @DeleteMapping("/pinecone/deleteAll")
     public ArkResponse deletePinecone(ArkRequest arkRequest) {
-      return new EdgeChain<>(deletePineconeEndpoint.deleteAll()).getArkResponse();
+      String namespace = arkRequest.getQueryParam("namespace");
+      return new EdgeChain<>(pineconeEndpoint.deleteAll(namespace)).getArkResponse();
     }
 
     private void zapWebHook(String url) {

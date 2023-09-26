@@ -1,10 +1,9 @@
 package com.edgechain.lib.retrofit;
 
-import com.edgechain.lib.endpoint.impl.AirtableEndpoint;
+import com.edgechain.lib.endpoint.impl.integration.AirtableEndpoint;
 import dev.fuxing.airtable.AirtableRecord;
 import io.reactivex.rxjava3.core.Single;
 import retrofit2.http.Body;
-import retrofit2.http.DELETE;
 import retrofit2.http.HTTP;
 import retrofit2.http.POST;
 

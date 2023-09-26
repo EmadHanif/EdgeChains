@@ -1,6 +1,6 @@
 package com.edgechain.lib.integration.airtable.client;
 
-import com.edgechain.lib.endpoint.impl.AirtableEndpoint;
+import com.edgechain.lib.endpoint.impl.integration.AirtableEndpoint;
 import com.edgechain.lib.integration.airtable.query.AirtableQueryBuilder;
 import com.edgechain.lib.rxjava.transformer.observable.EdgeChain;
 import dev.fuxing.airtable.AirtableApi;

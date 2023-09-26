@@ -1,6 +1,6 @@
 package com.edgechain;
 
-import com.edgechain.lib.endpoint.impl.AirtableEndpoint;
+import com.edgechain.lib.endpoint.impl.integration.AirtableEndpoint;
 import com.edgechain.lib.integration.airtable.query.AirtableQueryBuilder;
 import com.edgechain.lib.integration.airtable.query.SortOrder;
 import com.edgechain.lib.request.ArkRequest;

@@ -8,7 +8,6 @@ public class Endpoint implements Serializable {
 
   private static final long serialVersionUID = 8770981950923685799L;
 
-
   private String url;
   private String apiKey;
   private RetryPolicy retryPolicy;
@@ -35,6 +34,14 @@ public class Endpoint implements Serializable {
     this.url = url;
     this.apiKey = apiKey;
     this.retryPolicy = retryPolicy;
+  }
+
+  public void setUrl(String url) {
+    this.url = url;
+  }
+
+  public void setApiKey(String apiKey) {
+    this.apiKey = apiKey;
   }
 
   public String getApiKey() {

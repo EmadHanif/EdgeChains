@@ -1,7 +1,7 @@
 package com.edgechain.lib.index.client.impl;
 
 import com.edgechain.lib.embeddings.WordEmbeddings;
-import com.edgechain.lib.endpoint.impl.RedisEndpoint;
+import com.edgechain.lib.endpoint.impl.index.RedisEndpoint;
 import com.edgechain.lib.index.enums.RedisDistanceMetric;
 import com.edgechain.lib.index.responses.RedisDocument;
 import com.edgechain.lib.index.responses.RedisProperty;

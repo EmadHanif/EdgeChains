@@ -2,7 +2,7 @@ package com.edgechain.lib.index.client.impl;
 
 import com.edgechain.lib.configuration.context.ApplicationContextHolder;
 import com.edgechain.lib.embeddings.WordEmbeddings;
-import com.edgechain.lib.endpoint.impl.PostgresEndpoint;
+import com.edgechain.lib.endpoint.impl.index.PostgresEndpoint;
 import com.edgechain.lib.index.domain.PostgresWordEmbeddings;
 import com.edgechain.lib.index.repositories.PostgresClientMetadataRepository;
 import com.edgechain.lib.index.repositories.PostgresClientRepository;
