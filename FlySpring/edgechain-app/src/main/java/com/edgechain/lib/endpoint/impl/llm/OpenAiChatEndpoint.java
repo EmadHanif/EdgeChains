@@ -140,6 +140,17 @@ public class OpenAiChatEndpoint extends Endpoint {
     this.stream = stream;
   }
 
+  public String getRole() {
+    return role;
+  }
+
+  public void setRole(String role) {
+    this.role = role;
+  }
+
+  public void setInput(String input) {
+    this.input = input;
+  }
 
   public String getModel() {
     return model;

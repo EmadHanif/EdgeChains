@@ -71,6 +71,13 @@ public class BgeSmallEndpoint extends EmbeddingEndpoint {
     return tokenizerUrl;
   }
 
+  public void setModelUrl(String modelUrl) {
+    this.modelUrl = modelUrl;
+  }
+
+  public void setTokenizerUrl(String tokenizerUrl) {
+    this.tokenizerUrl = tokenizerUrl;
+  }
 
   public BgeSmallEndpoint(RetryPolicy retryPolicy, String modelUrl, String tokenizerUrl) {
     super(retryPolicy);

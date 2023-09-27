@@ -221,7 +221,10 @@ public class PostgresEndpoint extends Endpoint {
         this.idList = idList;
     }
 
-    // Getters
+    public void setEmbeddingEndpoint(EmbeddingEndpoint embeddingEndpoint) {
+        this.embeddingEndpoint = embeddingEndpoint;
+    }
+// Getters
 
     public WordEmbeddings getWordEmbedding() {
         return wordEmbedding;

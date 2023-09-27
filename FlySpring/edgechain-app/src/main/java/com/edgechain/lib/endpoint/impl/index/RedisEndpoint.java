@@ -74,6 +74,10 @@ public class RedisEndpoint extends Endpoint {
     return embeddingEndpoint;
   }
 
+  public void setEmbeddingEndpoint(EmbeddingEndpoint embeddingEndpoint) {
+    this.embeddingEndpoint = embeddingEndpoint;
+  }
+
   public void setPattern(String pattern) {
     this.pattern = pattern;
   }

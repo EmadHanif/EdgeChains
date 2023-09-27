@@ -44,6 +44,14 @@ public class OpenAiEmbeddingEndpoint extends EmbeddingEndpoint {
         return orgId;
     }
 
+    public void setOrgId(String orgId) {
+        this.orgId = orgId;
+    }
+
+    public void setModel(String model) {
+        this.model = model;
+    }
+
     @Override
     public Observable<WordEmbeddings> embeddings(String input, ArkRequest arkRequest) {
 

@@ -29,6 +29,10 @@ public class MiniLMEndpoint extends EmbeddingEndpoint {
     this.miniLMModel = miniLMModel;
   }
 
+  public void setMiniLMModel(MiniLMModel miniLMModel) {
+    this.miniLMModel = miniLMModel;
+  }
+
   public MiniLMModel getMiniLMModel() {
     return miniLMModel;
   }

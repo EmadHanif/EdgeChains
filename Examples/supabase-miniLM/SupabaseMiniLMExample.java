@@ -199,7 +199,7 @@ public class SupabaseMiniLMExample {
       //  Chain 2 ==> Query Embeddings from PostgreSQL
       EdgeChain<List<PostgresWordEmbeddings>> queryChain =
           new EdgeChain<>(
-              postgresEndpoint.query(List.of(query), PostgresDistanceMetric.L2, topK,arkRequest));
+              postgresEndpoint.query(List.of(query), PostgresDistanceMetric.L2, topK, topK,arkRequest));
 
       //  Chain 3 ===> Our queryFn passes takes list and passes each response with base prompt to
       // OpenAI
@@ -237,7 +237,7 @@ public class SupabaseMiniLMExample {
       // let's say topK=5; then we concatenate List into a string using String.join method
       EdgeChain<List<PostgresWordEmbeddings>> postgresChain =
           new EdgeChain<>(
-              postgresEndpoint.query(List.of(query), PostgresDistanceMetric.L2, topK,arkRequest));
+              postgresEndpoint.query(List.of(query), PostgresDistanceMetric.L2, topK, topK, arkRequest));
 
       // Chain 3 ===> Transform String of Queries into List<Queries>
       EdgeChain<String> queryChain =

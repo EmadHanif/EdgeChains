@@ -76,6 +76,14 @@ public class PineconeEndpoint extends Endpoint {
 
   // Getters
 
+  public void setOriginalUrl(String originalUrl) {
+    this.originalUrl = originalUrl;
+  }
+
+  public void setEmbeddingEndpoint(EmbeddingEndpoint embeddingEndpoint) {
+    this.embeddingEndpoint = embeddingEndpoint;
+  }
+
   public WordEmbeddings getWordEmbedding() {
     return wordEmbedding;
   }
