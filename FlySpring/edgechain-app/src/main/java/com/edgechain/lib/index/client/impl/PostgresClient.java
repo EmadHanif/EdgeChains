@@ -239,7 +239,8 @@ public class PostgresClient {
                         postgresEndpoint.getProbes(),
                         postgresEndpoint.getMetric(),
                         embeddings,
-                        postgresEndpoint.getTopK());
+                        postgresEndpoint.getTopK(),
+                         postgresEndpoint.getUpperLimit());
 
                 for (Map<String, Object> row : rows) {
 
@@ -302,6 +303,7 @@ public class PostgresClient {
                         postgresEndpoint.getProbes(),
                         postgresEndpoint.getMetric(),
                         postgresEndpoint.getTopK(),
+                        postgresEndpoint.getUpperLimit(),
                         postgresEndpoint.getOrderRRFBy());
 
                 for (Map<String, Object> row : rows) {

@@ -171,7 +171,8 @@ public class PostgresClientRepository {
       int probes,
       PostgresDistanceMetric metric,
       List<List<Float>> values,
-      int topK) {
+      int topK,
+      int upperLimit) {
 
     jdbcTemplate.execute(String.format("SET LOCAL ivfflat.probes = %s;", probes));
 
@@ -233,8 +234,9 @@ public class PostgresClientRepository {
     }
 
     if (values.size() > 1) {
-      return jdbcTemplate.queryForList(
-          String.format("SELECT DISTINCT ON (result.id) *\n" + "FROM ( %s ) result;", query));
+      return jdbcTemplate.queryForList(String.format(
+              "SELECT * FROM (SELECT DISTINCT ON (result.id) * FROM ( %s ) result) subquery  ORDER BY score DESC LIMIT %s;",
+              query, upperLimit));
     } else {
       return jdbcTemplate.queryForList(query.toString());
     }
@@ -253,6 +255,7 @@ public class PostgresClientRepository {
           int probes,
           PostgresDistanceMetric metric,
           int topK,
+          int upperLimit,
           OrderRRFBy orderRRFBy) {
 
     jdbcTemplate.execute(String.format("SET LOCAL ivfflat.probes = %s;", probes));
@@ -359,8 +362,9 @@ public class PostgresClientRepository {
     }
 
     if (values.size() > 1) {
-      return jdbcTemplate.queryForList(
-              String.format("SELECT DISTINCT ON (result.id) *\n" + "FROM ( %s ) result;", query));
+      return jdbcTemplate.queryForList(String.format(
+              "SELECT * FROM (SELECT DISTINCT ON (result.id) * FROM ( %s ) result) subquery ORDER BY rrf_score DESC LIMIT %s;",
+              query, upperLimit));
     } else {
       return jdbcTemplate.queryForList(query.toString());
     }

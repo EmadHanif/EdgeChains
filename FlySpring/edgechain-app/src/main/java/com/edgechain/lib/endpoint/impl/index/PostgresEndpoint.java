@@ -43,6 +43,7 @@ public class PostgresEndpoint extends Endpoint {
     private PostgresDistanceMetric metric;
     private int dimensions;
     private int topK;
+    private int upperLimit;
 
     private int probes;
     private String embeddingChunk;
@@ -142,6 +143,14 @@ public class PostgresEndpoint extends Endpoint {
 
     public void setEmbeddingChunk(String embeddingChunk) {
         this.embeddingChunk = embeddingChunk;
+    }
+
+    public int getUpperLimit() {
+        return upperLimit;
+    }
+
+    public void setUpperLimit(int upperLimit) {
+        this.upperLimit = upperLimit;
     }
 
     private void setLists(int lists) {
@@ -380,9 +389,8 @@ public class PostgresEndpoint extends Endpoint {
         return this.postgresService.batchInsertIntoJoinTable(mapper).blockingGet();
     }
 
-
     public Observable<List<PostgresWordEmbeddings>> query(
-            List<String> inputList, PostgresDistanceMetric metric, int topK, ArkRequest arkRequest) {
+            List<String> inputList, PostgresDistanceMetric metric, int topK, int upperLimit, ArkRequest arkRequest) {
 
         PostgresEndpoint mapper = modelMapper.map(this, PostgresEndpoint.class);
 
@@ -405,6 +413,7 @@ public class PostgresEndpoint extends Endpoint {
 
         mapper.setWordEmbeddingsList(endpointEmbeddingList);
         mapper.setTopK(topK);
+        mapper.setUpperLimit(upperLimit);
         mapper.setMetric(metric);
         mapper.setProbes(1);
         return Observable.fromSingle(this.postgresService.query(mapper));
@@ -414,6 +423,7 @@ public class PostgresEndpoint extends Endpoint {
             List<String> inputList,
             PostgresDistanceMetric metric,
             int topK,
+            int upperLimit,
             int probes,
             ArkRequest arkRequest) {
         PostgresEndpoint mapper = modelMapper.map(this, PostgresEndpoint.class);
@@ -439,6 +449,7 @@ public class PostgresEndpoint extends Endpoint {
         mapper.setMetric(metric);
         mapper.setProbes(probes);
         mapper.setTopK(topK);
+        mapper.setUpperLimit(upperLimit);
         return Observable.fromSingle(this.postgresService.query(mapper));
     }
 
@@ -454,6 +465,7 @@ public class PostgresEndpoint extends Endpoint {
             int probes,
             PostgresDistanceMetric metric,
             int topK,
+            int upperLimit,
             ArkRequest arkRequest) {
         PostgresEndpoint mapper = modelMapper.map(this, PostgresEndpoint.class);
         mapper.setMetadataTableNames(List.of(metadataTable));
@@ -485,6 +497,7 @@ public class PostgresEndpoint extends Endpoint {
         mapper.setProbes(probes);
         mapper.setMetric(metric);
         mapper.setTopK(topK);
+        mapper.setUpperLimit(upperLimit);
         return Observable.fromSingle(this.postgresService.queryRRF(mapper));
     }
 
@@ -504,17 +517,19 @@ public class PostgresEndpoint extends Endpoint {
 
     public Observable<List<PostgresWordEmbeddings>> queryWithMetadata(
             List<String> metadataTableNames,
-            WordEmbeddings wordEmbeddings,
+            String input,
             PostgresDistanceMetric metric,
             int topK,
-            int probes) {
+            ArkRequest arkRequest) {
         PostgresEndpoint mapper = modelMapper.map(this, PostgresEndpoint.class);
+
+        WordEmbeddings wordEmbeddings = new EdgeChain<>(embeddingEndpoint.embeddings(input, arkRequest)).get();
+
         mapper.setMetadataTableNames(metadataTableNames);
         mapper.setWordEmbedding(wordEmbeddings);
         mapper.setTopK(topK);
         mapper.setMetric(metric);
-        mapper.setProbes(probes);
-
+        mapper.setProbes(1);
         return Observable.fromSingle(this.postgresService.queryWithMetadata(mapper));
     }
 

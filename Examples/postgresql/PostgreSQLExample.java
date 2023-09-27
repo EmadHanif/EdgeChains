@@ -189,6 +189,7 @@ public class PostgreSQLExample {
                   List.of(query),
                   PostgresDistanceMetric.COSINE,
                   topK,
+                  topK,
                   10,
                   arkRequest));
 
@@ -226,7 +227,7 @@ public class PostgreSQLExample {
 
       EdgeChain<List<PostgresWordEmbeddings>> postgresChain =
           new EdgeChain<>(
-              postgresEndpoint.query(List.of(query), PostgresDistanceMetric.COSINE, topK,arkRequest));
+              postgresEndpoint.query(List.of(query), PostgresDistanceMetric.COSINE, topK, topK, arkRequest));
 
       // Chain 3 ===> Transform String of Queries into List<Queries>
       // let's say topK=5; then we concatenate List into a string using String.join method
