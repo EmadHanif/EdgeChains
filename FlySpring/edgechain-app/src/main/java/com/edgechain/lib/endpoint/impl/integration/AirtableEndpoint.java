@@ -56,6 +56,15 @@ public class AirtableEndpoint extends Endpoint {
         this.airtableQueryBuilder = airtableQueryBuilder;
     }
 
+    public void setBaseId(String baseId) {
+        this.baseId = baseId;
+    }
+
+    @Override
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
+    }
+
     public String getBaseId() {
         return baseId;
     }
@@ -85,13 +94,9 @@ public class AirtableEndpoint extends Endpoint {
     }
 
     public Observable<Map<String,Object>> findAll(String tableName, AirtableQueryBuilder builder){
-        this.tableName = tableName;
-        this.airtableQueryBuilder = builder;
-
-        AirtableEndpoint mapper = modelMapper.map(this, AirtableEndpoint.class);
+        AirtableEndpoint mapper = modelMapper.map(this, AirtableEndpoint.class);;
         mapper.setTableName(tableName);
         mapper.setAirtableQueryBuilder(builder);
-
         return Observable.fromSingle(this.airtableService.findAll(mapper));
     }
     public Observable<Map<String,Object>> findAll(String tableName){

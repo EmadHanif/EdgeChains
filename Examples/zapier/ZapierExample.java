@@ -78,7 +78,7 @@ public class ZapierExample {
   private static final String PINECONE_API = "";
 
 
-  private PineconeEndpoint pineconeEndpoint;
+  private static PineconeEndpoint pineconeEndpoint;
 
   public static void main(String[] args) {
 
@@ -86,7 +86,8 @@ public class ZapierExample {
 
     new SpringApplicationBuilder(ZapierExample.class).run(args);
 
-    OpenAiEmbeddingEndpoint ada002 = new OpenAiEmbeddingEndpoint(
+    OpenAiEmbeddingEndpoint adaEmbedding = new OpenAiEmbeddingEndpoint(
+            OPENAI_EMBEDDINGS_API,
             OPENAI_AUTH_KEY,
             OPENAI_ORG_ID,
             "text-embedding-ada-002",
@@ -96,7 +97,7 @@ public class ZapierExample {
             new PineconeEndpoint(
                     PINECONE_API,
                     PINECONE_AUTH_KEY,
-                    ada002,
+                    adaEmbedding,
                     new ExponentialDelay(3, 3, 2, TimeUnit.SECONDS));
   }
 

@@ -23,7 +23,6 @@ public class AirtableClient {
         Observable.create(
             emitter -> {
               try {
-
                 AirtableApi api = new AirtableApi(endpoint.getApiKey());
                 AirtableTable table = api.base(endpoint.getBaseId()).table(endpoint.getTableName());
 
