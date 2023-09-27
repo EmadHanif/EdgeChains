@@ -268,6 +268,7 @@ class PostgresClientTest {
     when(mockPe.getMetric()).thenReturn(metric);
     when(mockPe.getWordEmbeddingsList()).thenReturn(List.of(we1));
     when(mockPe.getTopK()).thenReturn(5);
+    when(mockPe.getUpperLimit()).thenReturn(5);
     when(mockPe.getMetadataTableNames()).thenReturn(null);
 
     final Data data = new Data();
@@ -305,6 +306,7 @@ class PostgresClientTest {
     when(mockPe.getMetric()).thenReturn(metric);
     when(mockPe.getWordEmbedding()).thenReturn(we1);
     when(mockPe.getTopK()).thenReturn(5);
+    when(mockPe.getUpperLimit()).thenReturn(5);
     when(mockPe.getMetadataTableNames()).thenReturn(List.of("title_metadata"));
 
     final Data data = new Data();
