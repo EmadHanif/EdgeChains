@@ -18,7 +18,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class PineconeClientTest {
 
   @LocalServerPort private int port;
@@ -30,7 +30,7 @@ public class PineconeClientTest {
   @BeforeEach
   void setUp() {
     System.setProperty("server.port", String.valueOf(port));
-    pineconeEndpoint = new PineconeEndpoint("https://arakoo.ai", "apiKey", "Pinecone",null);
+    pineconeEndpoint = new PineconeEndpoint("https://arakoo.ai", "apiKey", "Pinecone", null);
   }
 
   @Test
